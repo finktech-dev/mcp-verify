@@ -1,7 +1,8 @@
 {
   "name": "@finktech/mcp-server",
+  "private": true,
   "version": "1.0.2",
-  "description": "MCP Server wrapper for mcp-verify - Expose validation capabilities as MCP tools",
+  "description": "Deferred MCP server source retained for reassessment",
   "main": "dist/index.js",
   "bin": {
     "mcp-verify-server": "./dist/index.js"
@@ -20,7 +21,7 @@
     "mcp-server"
   ],
   "author": "Fink",
-  "license": "AGPL-3.0",
+  "license": "MIT",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/FinkTech/mcp-verify.git",
