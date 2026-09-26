@@ -2538,8 +2538,7 @@ export const translations = {
     context_clone_target_exists: 'El contexto "{target}" ya existe.',
     context_clone_choose_different:
       "Elige un nombre diferente o elimina el contexto existente primero.",
-    context_clone_failed:
-      'Falló al clonar el contexto "{source}"  "{target}".',
+    context_clone_failed: 'Falló al clonar el contexto "{source}"  "{target}".',
     context_clone_success: "Contexto clonado",
     context_clone_config_title: "Configuración clonada:",
     context_clone_target_label: "Target:",

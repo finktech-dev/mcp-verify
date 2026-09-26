@@ -62,9 +62,7 @@ describe("ShellParser", () => {
     });
 
     it("should handle mixed quotes in same command", () => {
-      const tokens = ShellParser.tokenise(
-        "scan-config \".mcp.json\" --quiet",
-      );
+      const tokens = ShellParser.tokenise('scan-config ".mcp.json" --quiet');
       expect(tokens).toEqual(["scan-config", ".mcp.json", "--quiet"]);
     });
 
@@ -1243,7 +1241,10 @@ describe("Workspace Health", () => {
         const result = Promise.race([slowServerPromise, timeoutPromise]);
         await jest.advanceTimersByTimeAsync(2000);
 
-        await expect(result).resolves.toEqual({ success: false, error: "timeout" });
+        await expect(result).resolves.toEqual({
+          success: false,
+          error: "timeout",
+        });
       } finally {
         jest.useRealTimers();
       }
