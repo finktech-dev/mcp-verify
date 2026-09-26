@@ -1,0 +1,30 @@
+# Deferred CLI commands
+
+## Purpose
+
+The CLI currently exposes only the commands documented in `COMMANDS.md`.
+The implementations below are retained in source for future reassessment, but
+they are not registered by the one-shot CLI or the interactive shell. Their
+presence in the repository is not a product claim or a support commitment.
+
+## Deferred commands
+
+| Command or option                                | What it did                                                             | Why it is not public now                                                                                                               | Conditions to restore it                                                                                                                                                                     |
+| ------------------------------------------------ | ----------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `fuzz` and `validate --fuzz`                     | Sent generated or malformed tool inputs to an MCP target.               | Its runtime, authorization boundary, resource limits, and scenario coverage are not yet reliable enough for a default public workflow. | Define explicit authorization and target-safety guidance; add hard bounds for payload count, concurrency, duration, and cleanup; cover cancellation and failure paths in isolated scenarios. |
+| `stress`                                         | Ran concurrent or sustained target traffic.                             | It can consume local and target resources, and its lifecycle needs stronger limits and cleanup proof.                                  | Add bounded concurrency and duration defaults, cancellation, process cleanup, and repeatable load scenarios that do not depend on a developer machine.                                       |
+| `play`                                           | Opened a local playground for invoking MCP tools.                       | Tool execution needs a clear permission, audit, and data-handling contract.                                                            | Document the execution consent model, protect secrets in logs, and add end-to-end tests for allowed, refused, and interrupted execution.                                                     |
+| `proxy`                                          | Started a local proxy or gateway around MCP traffic.                    | It has a larger security, privacy, and operational surface than the current CLI MVP.                                                   | Complete a threat model, define authentication and data-retention behavior, test failure isolation, and add a documented deployment model.                                                   |
+| `dashboard`                                      | Started a local web view of status and results.                         | There is no maintained observability workflow or release proof for it.                                                                 | Establish a real user workflow, supported configuration, lifecycle cleanup, and browser-level scenario coverage.                                                                             |
+| `examples`                                       | Printed a selector of historical examples.                              | Documentation is a more reliable place for examples than a separate executable command.                                                | Restore only if an interactive example browser is a validated user need and stays synchronized with tested commands.                                                                         |
+| `disclaimers`                                    | Managed acknowledgement text and preferences.                           | The current commands already carry their relevant safety boundary; a separate preference flow is not part of the MVP.                  | Define a versioned, non-interactive acknowledgement contract and reset behavior, then add persistence tests.                                                                                 |
+| `inspect`                                        | Discovered target capabilities and metadata from the interactive shell. | It was coupled to the retired playground flow and lacked an isolated public contract.                                                  | Give it a bounded read-only contract, stable output schema, redaction rules, and fixture-based scenarios.                                                                                    |
+| `fingerprint`                                    | Guessed server language, framework, or implementation details.          | Heuristic accuracy and false-positive behavior are not documented or tested as a public feature.                                       | Publish accuracy limits and supported signals, return confidence and uncertainty, and add fixtures for false positives and incomplete responses.                                             |
+| `validate --semantic-check` and `validate --llm` | Requested optional semantic or LLM-assisted analysis.                   | Credential handling, data boundaries, provider behavior, and result reproducibility are outside the current CLI MVP.                   | Define provider support and data flow, make credentials opt-in, redact persisted data, and test unavailable, declined, timeout, and provider-error paths.                                    |
+
+## Reassessment rule
+
+A deferred command returns only through a focused change that registers it in
+both CLI modes, updates `COMMANDS.md`, adds the applicable regression and
+scenario tests, and records validation evidence in the pull request. A source
+directory alone is not enough to make a command public.
