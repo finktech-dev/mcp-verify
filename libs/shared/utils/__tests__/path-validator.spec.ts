@@ -59,6 +59,15 @@ describe("PathValidator", () => {
       expect(result).toContain("report.html");
     });
 
+    it("should allow an absolute path contained by the base directory", () => {
+      const baseDir = path.join(tempDir, "reportes");
+      const outputPath = path.join(baseDir, "nested", "report.json");
+
+      const result = PathValidator.validateOutputPath(outputPath, baseDir);
+
+      expect(result).toBe(path.resolve(outputPath));
+    });
+
     it("should allow nested directories", () => {
       const baseDir = path.join(tempDir, "reportes");
 

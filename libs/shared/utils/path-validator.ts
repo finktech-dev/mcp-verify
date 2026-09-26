@@ -24,6 +24,9 @@ const isAbsolutePath = (value: string): boolean =>
   path.posix.isAbsolute(value) ||
   path.win32.isAbsolute(value);
 
+const usesForeignAbsoluteSyntax = (value: string): boolean =>
+  isAbsolutePath(value) && !path.isAbsolute(value);
+
 const escapesDirectory = (baseDir: string, candidate: string): boolean => {
   const relative = path.relative(baseDir, candidate);
 
@@ -58,7 +61,7 @@ export class PathValidator {
   ): string {
     const baseDirResolved = path.resolve(baseDir);
 
-    if (userPath.includes("\0") || isAbsolutePath(userPath)) {
+    if (userPath.includes("\0") || usesForeignAbsoluteSyntax(userPath)) {
       throw new Error(
         `[Security] Invalid output path: "${userPath}" attempts to write outside allowed directory.\n` +
           `Allowed: ${baseDirResolved}\n\n` +
@@ -70,7 +73,9 @@ export class PathValidator {
     const normalized = path.normalize(userPath);
 
     // Resolve to absolute path
-    const resolved = path.resolve(baseDir, normalized);
+    const resolved = path.isAbsolute(userPath)
+      ? path.resolve(normalized)
+      : path.resolve(baseDir, normalized);
 
     // Check the directory boundary without accepting prefix collisions.
     if (escapesDirectory(baseDirResolved, resolved)) {
@@ -110,7 +115,7 @@ export class PathValidator {
   static validateBaselinePath(userPath: string): string {
     const cwd = path.resolve(process.cwd());
 
-    if (userPath.includes("\0") || isAbsolutePath(userPath)) {
+    if (userPath.includes("\0") || usesForeignAbsoluteSyntax(userPath)) {
       throw new Error(
         `[Security] Invalid baseline path: "${userPath}" is outside project directory.\n` +
           `Project: ${cwd}\n\n` +
