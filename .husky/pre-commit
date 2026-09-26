@@ -1,0 +1,9 @@
+#!/usr/bin/env sh
+. "$(dirname -- "$0")/_/husky.sh"
+
+if [ "$(git branch --show-current)" = "main" ]; then
+  echo "Direct commits to main are blocked. Create a short-lived branch and open a pull request."
+  exit 1
+fi
+
+npx lint-staged
