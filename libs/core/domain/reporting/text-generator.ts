@@ -2,7 +2,7 @@
  * Copyright (c) 2026 FinkTech
  *
  * This file is part of MCP Verify.
- * Licensed under the GNU Affero General Public License v3.0 (AGPL-3.0).
+ * Licensed under the MIT License.
  * See LICENSE file in the project root for full license information.
  */
 /**
@@ -27,7 +27,7 @@
  *   fs.writeFileSync('report.txt', txt);
  */
 
-import { translations, type Language } from "./i18n";
+import { translations, type Language } from "@finktech/shared";
 import type {
   Report,
   SecurityFinding,
@@ -314,6 +314,9 @@ export const groupFindingsBySeverity = (
       }
       const entry = grouped.get(signature)!;
       entry.count++;
+      if (f.evidence && typeof f.evidence.payload === "string") {
+        entry.payloads.add(f.evidence.payload);
+      }
     }
 
     result.set(sev, grouped);

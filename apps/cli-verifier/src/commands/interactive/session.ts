@@ -2,7 +2,7 @@
  * Copyright (c) 2026 FinkTech
  *
  * This file is part of MCP Verify.
- * Licensed under the GNU Affero General Public License v3.0 (AGPL-3.0).
+ * Licensed under the MIT License.
  * See LICENSE file in the project root for full license information.
  */
 /**
@@ -300,13 +300,14 @@ export class ShellSession {
     if (!ctx?.target) return;
 
     let transport: ITransport | null = null;
+    let timeoutId: ReturnType<typeof setTimeout> | undefined;
     try {
       const transportType = ctx.target.startsWith("http") ? "http" : "stdio";
       transport = createTransport(ctx.target, { transportType, timeout: 5000 });
 
-      const timeout = new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error("timeout")), 4000),
-      );
+      const timeout = new Promise<never>((_, reject) => {
+        timeoutId = setTimeout(() => reject(new Error("timeout")), 4000);
+      });
 
       const init = transport.send({
         jsonrpc: "2.0",
@@ -339,6 +340,7 @@ export class ShellSession {
     } catch {
       // Best-effort — ignore all errors
     } finally {
+      if (timeoutId) clearTimeout(timeoutId);
       try {
         await transport?.close?.();
       } catch {
