@@ -28,8 +28,9 @@ Thumbs.db
 
 # Environment
 .env
-.env.local
-.env.*.local
+.env.*
+!.env.example
+!.env.*.example
 
 # Temporary/Junk
 *.tmp
@@ -40,8 +41,12 @@ dev-artifacts/
 .internal/
 .archived
 
+# Local agent and session state
+.agents/
+.claude/
+.codex/
+
 # Temp session files
-*.txt
 repro.ts
 
 # Temp reports (keep structure with .gitkeep)
@@ -70,8 +75,6 @@ brand-content/
 # Mock servers (development only)
 tools/mocks/servers/expense-approval/
 
-# Claude Code local configuration
-.claude/
 .audit-workspace/
 
 # Test directories and artifacts
@@ -86,4 +89,15 @@ pnpm-lock.yaml
 
 # Backup and binary files
 *.old
-*.vsix 
+*.vsix
+.eslintcache
+.nyc_output/
+.turbo/
+
+# Local credentials and certificates
+*.pem
+*.key
+*.p12
+*.pfx
+*.crt
+*.cer

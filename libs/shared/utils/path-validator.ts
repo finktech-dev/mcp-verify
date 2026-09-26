@@ -2,7 +2,7 @@
  * Copyright (c) 2026 FinkTech
  *
  * This file is part of MCP Verify.
- * Licensed under the GNU Affero General Public License v3.0 (AGPL-3.0).
+ * Licensed under the MIT License.
  * See LICENSE file in the project root for full license information.
  */
 /**
@@ -19,6 +19,24 @@
 import path from "path";
 import fs from "fs";
 
+const isAbsolutePath = (value: string): boolean =>
+  path.isAbsolute(value) ||
+  path.posix.isAbsolute(value) ||
+  path.win32.isAbsolute(value);
+
+const usesForeignAbsoluteSyntax = (value: string): boolean =>
+  isAbsolutePath(value) && !path.isAbsolute(value);
+
+const escapesDirectory = (baseDir: string, candidate: string): boolean => {
+  const relative = path.relative(baseDir, candidate);
+
+  return (
+    relative === ".." ||
+    relative.startsWith(`..${path.sep}`) ||
+    path.isAbsolute(relative)
+  );
+};
+
 export class PathValidator {
   /**
    * Validate and sanitize output paths to prevent traversal
@@ -30,26 +48,37 @@ export class PathValidator {
    *
    * @example
    * // Safe paths:
-   * validateOutputPath('./reportes/custom.json') // ✅ OK
-   * validateOutputPath('reports/test.html')      // ✅ OK
+   * validateOutputPath('./reportes/custom.json') //  OK
+   * validateOutputPath('reports/test.html')      //  OK
    *
    * // Blocked paths:
-   * validateOutputPath('../../../etc/passwd')     // ❌ Throws
-   * validateOutputPath('/etc/passwd')             // ❌ Throws
+   * validateOutputPath('../../../etc/passwd')     //  Throws
+   * validateOutputPath('/etc/passwd')             //  Throws
    */
   static validateOutputPath(
     userPath: string,
     baseDir: string = "./reportes",
   ): string {
+    const baseDirResolved = path.resolve(baseDir);
+
+    if (userPath.includes("\0") || usesForeignAbsoluteSyntax(userPath)) {
+      throw new Error(
+        `[Security] Invalid output path: "${userPath}" attempts to write outside allowed directory.\n` +
+          `Allowed: ${baseDirResolved}\n\n` +
+          `This is blocked to prevent path traversal attacks.`,
+      );
+    }
+
     // Normalize path (removes .., ./, etc)
     const normalized = path.normalize(userPath);
 
     // Resolve to absolute path
-    const resolved = path.resolve(baseDir, normalized);
-    const baseDirResolved = path.resolve(baseDir);
+    const resolved = path.isAbsolute(userPath)
+      ? path.resolve(normalized)
+      : path.resolve(baseDir, normalized);
 
-    // Check if resolved path starts with baseDir
-    if (!resolved.startsWith(baseDirResolved)) {
+    // Check the directory boundary without accepting prefix collisions.
+    if (escapesDirectory(baseDirResolved, resolved)) {
       throw new Error(
         `[Security] Invalid output path: "${userPath}" attempts to write outside allowed directory.\n` +
           `Allowed: ${baseDirResolved}\n` +
@@ -76,20 +105,29 @@ export class PathValidator {
    *
    * @example
    * // Safe paths:
-   * validateBaselinePath('./baseline.json')           // ✅ OK
-   * validateBaselinePath('config/baseline.json')      // ✅ OK
+   * validateBaselinePath('./baseline.json')           //  OK
+   * validateBaselinePath('config/baseline.json')      //  OK
    *
    * // Blocked paths:
-   * validateBaselinePath('../../outside/baseline.json') // ❌ Throws
-   * validateBaselinePath('/tmp/baseline.json')          // ❌ Throws
+   * validateBaselinePath('../../outside/baseline.json') //  Throws
+   * validateBaselinePath('/tmp/baseline.json')          //  Throws
    */
   static validateBaselinePath(userPath: string): string {
+    const cwd = path.resolve(process.cwd());
+
+    if (userPath.includes("\0") || usesForeignAbsoluteSyntax(userPath)) {
+      throw new Error(
+        `[Security] Invalid baseline path: "${userPath}" is outside project directory.\n` +
+          `Project: ${cwd}\n\n` +
+          `Baseline files must be within the project directory for security.`,
+      );
+    }
+
     const normalized = path.normalize(userPath);
     const resolved = path.resolve(normalized);
-    const cwd = process.cwd();
 
     // Baseline must be within project directory
-    if (!resolved.startsWith(cwd)) {
+    if (escapesDirectory(cwd, resolved)) {
       throw new Error(
         `[Security] Invalid baseline path: "${userPath}" is outside project directory.\n` +
           `Project: ${cwd}\n` +

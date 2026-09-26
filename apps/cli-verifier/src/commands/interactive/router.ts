@@ -2,7 +2,7 @@
  * Copyright (c) 2026 FinkTech
  *
  * This file is part of MCP Verify.
- * Licensed under the GNU Affero General Public License v3.0 (AGPL-3.0).
+ * Licensed under the MIT License.
  * See LICENSE file in the project root for full license information.
  */
 /**
@@ -15,7 +15,6 @@ import readline from "readline";
 import chalk from "chalk";
 import { spawn } from "child_process";
 import { t } from "@finktech/shared";
-import { ASCII_ART } from "@finktech/core/domain/reporting/assets";
 
 // Version hardcoded for bundle compatibility
 const packageJson = { version: "1.0.0" };
@@ -25,17 +24,10 @@ import { PersistenceManager } from "./persistence";
 
 // Import all handlers
 import { handleValidate } from "./handlers/validate";
-import { handleFuzz } from "./handlers/fuzz";
 import { handleDoctor } from "./handlers/doctor";
-import { handleStress } from "./handlers/stress";
-import { handleDashboard } from "./handlers/dashboard";
-import { handlePlay } from "./handlers/play";
-import { handleProxy } from "./handlers/proxy";
 import { handleMock } from "./handlers/mock";
 import { handleInit } from "./handlers/init";
-import { handleFingerprint } from "./handlers/fingerprint";
-import { handleInspect } from "./handlers/inspect";
-import { handleExamples } from "./handlers/examples";
+import { handleScanConfig } from "./handlers/scan-config";
 import {
   handleSet,
   handleTargetChange,
@@ -60,17 +52,10 @@ import { handleStatus } from "../handlers/status-handler";
 
 const PRIMARY_COMMANDS: readonly string[] = [
   "validate",
-  "fuzz",
   "doctor",
-  "stress",
-  "dashboard",
-  "play",
-  "proxy",
   "mock",
   "init",
-  "fingerprint",
-  "inspect",
-  "examples",
+  "scan-config",
   "history",
   "config",
   "context",
@@ -100,26 +85,9 @@ export async function dispatch(
     case "v":
       await handleValidate(args, session, rl);
       break;
-    case "fuzz":
-    case "f":
-      await handleFuzz(args, session, rl);
-      break;
     case "doctor":
     case "d":
       await handleDoctor(args, session, rl);
-      break;
-    case "stress":
-    case "s":
-      await handleStress(args, session, rl);
-      break;
-    case "dashboard":
-      await handleDashboard(args, session, rl);
-      break;
-    case "play":
-      await handlePlay(args, session, rl);
-      break;
-    case "proxy":
-      await handleProxy(args, session, rl);
       break;
     case "mock":
     case "m":
@@ -128,17 +96,8 @@ export async function dispatch(
     case "init":
       await handleInit(args);
       break;
-    case "fingerprint":
-    case "stack":
-      await handleFingerprint(args, session, rl);
-      break;
-    case "inspect":
-    case "ls":
-      await handleInspect(args, session, rl);
-      break;
-    case "examples":
-    case "ex":
-      await handleExamples();
+    case "scan-config":
+      await handleScanConfig(args);
       break;
 
     // Session management
@@ -176,7 +135,7 @@ export async function dispatch(
       showAbout();
       break;
     case "version":
-      console.log(chalk.cyan(ASCII_ART.version(packageJson.version)));
+      console.log(packageJson.version);
       break;
     case "help":
     case "h":

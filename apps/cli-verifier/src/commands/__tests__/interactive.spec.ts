@@ -2,7 +2,7 @@
  * Copyright (c) 2026 FinkTech
  *
  * This file is part of MCP Verify.
- * Licensed under the GNU Affero General Public License v3.0 (AGPL-3.0).
+ * Licensed under the MIT License.
  * See LICENSE file in the project root for full license information.
  */
 /**
@@ -32,7 +32,6 @@ import {
   isValidWorkspaceContexts,
 } from "../managers/migration";
 import { SECURITY_PROFILES } from "../profiles/security-profiles";
-import { WorkspaceHealthChecker } from "../managers/workspace-health-checker";
 import * as fs from "fs";
 import * as path from "path";
 
@@ -63,10 +62,8 @@ describe("ShellParser", () => {
     });
 
     it("should handle mixed quotes in same command", () => {
-      const tokens = ShellParser.tokenise(
-        "fuzz \"node s.js\" --tool 'Echo Tool'",
-      );
-      expect(tokens).toEqual(["fuzz", "node s.js", "--tool", "Echo Tool"]);
+      const tokens = ShellParser.tokenise('scan-config ".mcp.json" --quiet');
+      expect(tokens).toEqual(["scan-config", ".mcp.json", "--quiet"]);
     });
 
     it("should handle empty quotes", () => {
@@ -254,14 +251,11 @@ describe("ShellParser", () => {
 
     it("should skip flag values", () => {
       const pos = ShellParser.extractPositionals([
-        "fuzz",
+        "scan-config",
         "target",
-        "--tool",
-        "Echo",
-        "--timeout",
-        "5000",
+        "--quiet",
       ]);
-      expect(pos).toEqual(["fuzz", "target"]);
+      expect(pos).toEqual(["scan-config", "target"]);
     });
 
     it("should handle tokens with no flags at all", () => {
@@ -316,15 +310,15 @@ describe("ContextCompleter", () => {
 
     it("should return all commands on empty input", () => {
       const [completions] = ContextCompleter.complete("");
-      expect(completions.length).toBeGreaterThan(15); // Should include all primary commands
+      expect(completions.length).toBeGreaterThan(10);
       expect(completions).toContain("validate");
-      expect(completions).toContain("fuzz");
+      expect(completions).toContain("scan-config");
       expect(completions).toContain("doctor");
     });
 
-    it('should complete "fu" to "fuzz"', () => {
-      const [completions] = ContextCompleter.complete("fu");
-      expect(completions).toContain("fuzz");
+    it('should complete "sca" to "scan-config"', () => {
+      const [completions] = ContextCompleter.complete("sca");
+      expect(completions).toContain("scan-config");
     });
 
     it('should complete "hel" to "help"', () => {
@@ -346,23 +340,15 @@ describe("ContextCompleter", () => {
       expect(completions.some((c) => c.includes("--format"))).toBe(true);
     });
 
-    it('should complete flags for "fuzz" command', () => {
-      const [completions] = ContextCompleter.complete("fuzz --");
-      expect(completions.some((c) => c.includes("--tool"))).toBe(true);
-      expect(completions.some((c) => c.includes("--timeout"))).toBe(true);
+    it('should complete flags for "scan-config" command', () => {
+      const [completions] = ContextCompleter.complete("scan-config --");
+      expect(completions).toContain("scan-config --all");
+      expect(completions).toContain("scan-config --quiet");
     });
 
-    it('should complete partial flag "--to" to "--tool" or "--timeout"', () => {
-      const [completions] = ContextCompleter.complete("fuzz --to");
-      // Should suggest flags that start with --to
-      // At minimum, should return some completions for fuzz command
-      expect(Array.isArray(completions)).toBe(true);
-      // If the completer works, it should find --tool and/or --timeout
-      const hasToolOrTimeout = completions.some(
-        (c) => c.includes("--tool") || c.includes("--timeout"),
-      );
-      // Relaxed test: just verify it returns completions for the fuzz command
-      expect(completions.length).toBeGreaterThanOrEqual(0);
+    it('should complete the "--a" flag for "scan-config"', () => {
+      const [completions] = ContextCompleter.complete("scan-config --a");
+      expect(completions).toContain("scan-config --all");
     });
 
     it("should suggest flags when space is added after command", () => {
@@ -1235,55 +1221,54 @@ describe("Workspace Health", () => {
 
   describe("Connection Timeout", () => {
     it("should timeout after 2000ms for slow servers", async () => {
-      jest.setTimeout(5000);
+      jest.useFakeTimers();
 
-      // This test verifies the timeout mechanism
-      // In real usage, WorkspaceHealthChecker uses Promise.race
-      const startTime = Date.now();
-
-      const timeoutPromise = new Promise((resolve) => {
-        setTimeout(() => {
-          resolve({ success: false, error: "timeout" });
-        }, 2000);
-      });
-
-      const slowServerPromise = new Promise((resolve) => {
-        setTimeout(() => {
-          resolve({ success: true });
-        }, 10000); // Would take 10 seconds
-      });
-
-      const result = await Promise.race([slowServerPromise, timeoutPromise]);
-      const elapsed = Date.now() - startTime;
-
-      expect(elapsed).toBeLessThan(5000); // Increased threshold for slow environments
-      expect(elapsed).toBeGreaterThanOrEqual(1900); // Allow small timing variance
-      expect(result).toEqual({ success: false, error: "timeout" });
-    }, 10000);
-
-    it("should not block shell on server timeout", async () => {
-      jest.setTimeout(5000);
-
-      const startTime = Date.now();
-
-      // Simulate health check with timeout
-      const healthCheck = async (): Promise<void> => {
-        const timeoutPromise = new Promise<void>((resolve) => {
+      try {
+        // This test verifies the timeout mechanism.
+        // In real usage, WorkspaceHealthChecker uses Promise.race.
+        const timeoutPromise = new Promise((resolve) => {
           setTimeout(() => {
-            resolve();
+            resolve({ success: false, error: "timeout" });
           }, 2000);
         });
 
-        await timeoutPromise;
-      };
+        const slowServerPromise = new Promise((resolve) => {
+          setTimeout(() => {
+            resolve({ success: true });
+          }, 10000);
+        });
 
-      await healthCheck();
+        const result = Promise.race([slowServerPromise, timeoutPromise]);
+        await jest.advanceTimersByTimeAsync(2000);
 
-      const elapsed = Date.now() - startTime;
+        await expect(result).resolves.toEqual({
+          success: false,
+          error: "timeout",
+        });
+      } finally {
+        jest.useRealTimers();
+      }
+    });
 
-      // Should complete promptly around 2000ms, not hang indefinitely
-      expect(elapsed).toBeLessThan(3000);
-    }, 5000);
+    it("should not block shell on server timeout", async () => {
+      jest.useFakeTimers();
+
+      try {
+        // Simulate health check with timeout.
+        const healthCheck = async (): Promise<void> => {
+          await new Promise<void>((resolve) => {
+            setTimeout(resolve, 2000);
+          });
+        };
+
+        const healthCheckPromise = healthCheck();
+        await jest.advanceTimersByTimeAsync(2000);
+
+        await expect(healthCheckPromise).resolves.toBeUndefined();
+      } finally {
+        jest.useRealTimers();
+      }
+    });
   });
 
   describe("Connection Status Detection", () => {

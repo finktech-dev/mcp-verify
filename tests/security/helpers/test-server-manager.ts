@@ -2,7 +2,7 @@
  * Copyright (c) 2026 FinkTech
  *
  * This file is part of MCP Verify.
- * Licensed under the GNU Affero General Public License v3.0 (AGPL-3.0).
+ * Licensed under the MIT License.
  * See LICENSE file in the project root for full license information.
  */
 import { spawn, ChildProcess } from "child_process";
@@ -96,7 +96,9 @@ export class TestServerManager {
     // Build command arguments
     const isTs = this.serverPath.endsWith(".ts");
     const executable = isTs ? "npx" : "node";
-    const args = isTs ? ["ts-node", this.serverPath] : [this.serverPath];
+    const args = isTs
+      ? ["ts-node", "--transpile-only", this.serverPath]
+      : [this.serverPath];
 
     args.push(`--profile=${this.profile}`);
     args.push(`--lang=${this.lang}`);
@@ -233,7 +235,7 @@ export class TestServerManager {
     if (this.transport === "stdio") {
       const isTs = this.serverPath.endsWith(".ts");
       const cmd = isTs
-        ? `npx ts-node "${this.serverPath}"`
+        ? `npx ts-node --transpile-only "${this.serverPath}"`
         : `node "${this.serverPath}"`;
       return `${cmd} --profile=${this.profile} --lang=${this.lang}`;
     } else if (this.transport === "http") {

@@ -6,13 +6,13 @@
 
 <!-- Mark with 'x' what applies -->
 
-- [ ] 🎉 New feature (adds new functionality)
-- [ ] 🐛 Bug fix (fixes an issue)
-- [ ] 🔧 Refactor (code change that doesn't add features or fix bugs)
-- [ ] 📚 Documentation (documentation-only changes)
-- [ ] ✅ Tests (adding or fixing tests)
-- [ ] 🔒 Security (vulnerability fix or security improvement)
-- [ ] ⚡ Performance (performance improvement)
+- [ ] New feature (adds new functionality)
+- [ ] Bug fix (fixes an issue)
+- [ ] Refactor (code change that doesn't add features or fix bugs)
+- [ ] Documentation (documentation-only changes)
+- [ ] Tests (adding or fixing tests)
+- [ ] Security (vulnerability fix or security improvement)
+- [ ] Performance (performance improvement)
 
 ## Code Standards Checklist
 
@@ -26,9 +26,7 @@
 - [ ] **Tests**: Added tests for new features/fixes
 - [ ] **Linting**: `npm run lint` passes without errors
 - [ ] **Type check**: `npm run type-check` passes without errors
-- [ ] **Local tests**: `npm test` passes locally
-- [ ] **DCO**: Signed commits with `git commit -s`
-- [ ] **Conventional Commits**: Commit messages follow `type(scope): description` format
+- [ ] **Validation**: Ran the narrowest relevant test lane and documented any lane not run
 
 ## Impact
 
@@ -125,9 +123,9 @@ Closes #<!-- issue number -->
 
 ---
 
-**✅ This PR will be automatically reviewed via GitHub Actions:**
+**GitHub Actions validates the configured checks; reviewers still evaluate scope and evidence:**
 
-- **Tests**: Unit, integration, and security test verification
+- **Tests**: Unit, security, scenario, and release-smoke checks as configured
 - **Linting**: Code style validation with ESLint
 - **Type Checking**: TypeScript types compilation
 - **Build**: Project build verification

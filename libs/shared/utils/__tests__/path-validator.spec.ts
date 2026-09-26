@@ -2,7 +2,7 @@
  * Copyright (c) 2026 FinkTech
  *
  * This file is part of MCP Verify.
- * Licensed under the GNU Affero General Public License v3.0 (AGPL-3.0).
+ * Licensed under the MIT License.
  * See LICENSE file in the project root for full license information.
  */
 /**
@@ -59,6 +59,15 @@ describe("PathValidator", () => {
       expect(result).toContain("report.html");
     });
 
+    it("should allow an absolute path contained by the base directory", () => {
+      const baseDir = path.join(tempDir, "reportes");
+      const outputPath = path.join(baseDir, "nested", "report.json");
+
+      const result = PathValidator.validateOutputPath(outputPath, baseDir);
+
+      expect(result).toBe(path.resolve(outputPath));
+    });
+
     it("should allow nested directories", () => {
       const baseDir = path.join(tempDir, "reportes");
 
@@ -106,6 +115,13 @@ describe("PathValidator", () => {
       expect(() => {
         PathValidator.validateOutputPath(
           "C:\\Windows\\System32\\config\\sam",
+          baseDir,
+        );
+      }).toThrow(/Invalid output path/);
+
+      expect(() => {
+        PathValidator.validateOutputPath(
+          "\\\\server\\share\\report.json",
           baseDir,
         );
       }).toThrow(/Invalid output path/);

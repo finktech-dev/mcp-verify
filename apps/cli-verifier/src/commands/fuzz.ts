@@ -2,7 +2,7 @@
  * Copyright (c) 2026 FinkTech
  *
  * This file is part of MCP Verify.
- * Licensed under the GNU Affero General Public License v3.0 (AGPL-3.0).
+ * Licensed under the MIT License.
  * See LICENSE file in the project root for full license information.
  */
 /**
@@ -25,7 +25,6 @@ import {
   generateMetadata,
   JsonRpcRequest,
   JsonRpcNotification,
-  ProtocolComplianceReport,
 } from "@finktech/core";
 import {
   FuzzerEngine,
@@ -69,7 +68,6 @@ import {
   ServerFingerprint,
   // Report utilities
   sessionToReport,
-  sessionToSummary,
 } from "@finktech/fuzzer";
 import {
   detectTransportType,
@@ -182,6 +180,8 @@ export class McpFuzzTarget implements FuzzTarget {
     try {
       // Call tools/list to get available tools
       const response = (await this.transport.send({
+        jsonrpc: "2.0",
+        id: Date.now(),
         method: "tools/list",
         params: {},
       })) as ListToolsResponse;
@@ -349,15 +349,27 @@ export class McpFuzzTarget implements FuzzTarget {
       }
 
       // Create timeout promise
+      let timeoutHandle: NodeJS.Timeout | undefined;
       const timeoutPromise = new Promise<never>((_, reject) => {
-        setTimeout(() => reject(new Error("Request timeout")), this.timeout);
+        timeoutHandle = setTimeout(
+          () => reject(new Error("Request timeout")),
+          this.timeout,
+        );
       });
 
-      // Send request with timeout
+      // Send request with timeout. Clear the timer when the request settles so
+      // a completed fuzz run does not retain one timer per payload.
       const responsePromise = this.transport.send(
         request as JsonRpcRequest | JsonRpcNotification,
       );
-      const response = await Promise.race([responsePromise, timeoutPromise]);
+      let response: unknown;
+      try {
+        response = await Promise.race([responsePromise, timeoutPromise]);
+      } finally {
+        if (timeoutHandle) {
+          clearTimeout(timeoutHandle);
+        }
+      }
 
       const responseTimeMs = Date.now() - startTime;
 
@@ -445,7 +457,7 @@ function printSessionSummary(session: FuzzingSession): void {
     : "?";
 
   console.log("");
-  console.log(chalk.bold("📊 " + t("fuzz_session_summary") + ":"));
+  console.log(chalk.bold(" " + t("fuzz_session_summary") + ":"));
   console.log(chalk.gray("─".repeat(50)));
   console.log(`  ${chalk.dim("Session ID:")} ${session.id}`);
   console.log(`  ${chalk.dim("Duration:")} ${duration}s`);
@@ -522,7 +534,7 @@ function printSessionSummary(session: FuzzingSession): void {
 
   if (session.aborted) {
     console.log("");
-    console.log(chalk.yellow(`  ⚠️  Session aborted: ${session.abortReason}`));
+    console.log(chalk.yellow(`    Session aborted: ${session.abortReason}`));
   }
 
   console.log(chalk.gray("─".repeat(50)));
@@ -533,7 +545,7 @@ function printSessionSummary(session: FuzzingSession): void {
  */
 function printFingerprintResult(fingerprint: ServerFingerprint): void {
   console.log("");
-  console.log(chalk.bold("🔍 " + t("fingerprint_results") + ":"));
+  console.log(chalk.bold(" " + t("fingerprint_results") + ":"));
   console.log(chalk.gray("─".repeat(50)));
 
   // Language
@@ -570,7 +582,7 @@ function printFingerprintResult(fingerprint: ServerFingerprint): void {
       `  ${chalk.dim("Auto-disabled generators (irrelevant for this stack):")}`,
     );
     for (const gen of fingerprint.disabledGenerators) {
-      console.log(`    ${chalk.red("✗")} ${chalk.strikethrough(gen)}`);
+      console.log(`    ${chalk.red("")} ${chalk.strikethrough(gen)}`);
     }
   }
 
@@ -579,7 +591,7 @@ function printFingerprintResult(fingerprint: ServerFingerprint): void {
     console.log("");
     console.log(`  ${chalk.dim("Prioritized generators:")}`);
     for (const gen of fingerprint.recommendedGenerators.slice(0, 5)) {
-      console.log(`    ${chalk.green("✓")} ${gen}`);
+      console.log(`    ${chalk.green("")} ${gen}`);
     }
     if (fingerprint.recommendedGenerators.length > 5) {
       console.log(
@@ -657,31 +669,31 @@ async function saveReports(
 
   // Print saved paths
   if (result.paths.json) {
-    console.log(chalk.green(`\n📄 JSON report saved: ${result.paths.json}`));
+    console.log(chalk.green(`\n JSON report saved: ${result.paths.json}`));
   }
   if (result.paths.html) {
-    console.log(chalk.green(`📊 HTML report saved: ${result.paths.html}`));
+    console.log(chalk.green(` HTML report saved: ${result.paths.html}`));
   }
   if (result.paths.markdown) {
     console.log(
-      chalk.green(`📝 Markdown report saved: ${result.paths.markdown}`),
+      chalk.green(` Markdown report saved: ${result.paths.markdown}`),
     );
   }
   if (result.paths.txt) {
-    console.log(chalk.green(`📄 Text report saved: ${result.paths.txt}`));
+    console.log(chalk.green(` Text report saved: ${result.paths.txt}`));
   }
   if (result.paths.sarif) {
-    console.log(chalk.green(`🔒 SARIF report saved: ${result.paths.sarif}`));
+    console.log(chalk.green(` SARIF report saved: ${result.paths.sarif}`));
   }
   if (result.paths.rawSession) {
-    console.log(chalk.gray(`📋 Raw session saved: ${result.paths.rawSession}`));
+    console.log(chalk.gray(` Raw session saved: ${result.paths.rawSession}`));
   }
 
   // Report any errors
   for (const error of result.errors) {
     console.log(
       chalk.yellow(
-        `⚠️  Could not generate ${error.format} report: ${error.message}`,
+        `  Could not generate ${error.format} report: ${error.message}`,
       ),
     );
   }
@@ -693,14 +705,14 @@ async function saveReports(
 export async function runFuzzAction(
   target: string,
   options: FuzzOptions,
-): Promise<void> {
+): Promise<0 | 1 | 2> {
   // Check disclaimer before proceeding
   const { checkDisclaimer } = await import("../utils/disclaimer-manager");
   const accepted = await checkDisclaimer("fuzz");
 
   if (!accepted) {
     console.log(chalk.yellow(t("disclaimer_aborted")));
-    return;
+    return 0;
   }
 
   const spinner = ora(t("initializing_fuzzer")).start();
@@ -877,7 +889,7 @@ export async function runFuzzAction(
       } else {
         console.log(
           chalk.yellow(
-            `⚠️  Invalid header format: ${h} (use "Key: Value" or "Key=Value")`,
+            `  Invalid header format: ${h} (use "Key: Value" or "Key=Value")`,
           ),
         );
         continue;
@@ -913,9 +925,6 @@ export async function runFuzzAction(
     await fuzzTarget.close();
   });
 
-  let vulnerabilitiesFound = 0;
-  let fingerprintResult: ServerFingerprint | undefined;
-
   // Calculate rate limit (convert requests/sec to delay in ms)
   let delayBetweenRequests: number | undefined;
   if (options.rateLimit) {
@@ -924,7 +933,7 @@ export async function runFuzzAction(
       delayBetweenRequests = Math.floor(1000 / rps); // Convert req/s to ms delay
       console.log(
         chalk.cyan(
-          `📊 ${t("rate_limit_active")}: ${rps} ${t("rate_limit_requests_per_sec")} (${delayBetweenRequests}ms delay)\n`,
+          ` ${t("rate_limit_active")}: ${rps} ${t("rate_limit_requests_per_sec")} (${delayBetweenRequests}ms delay)\n`,
         ),
       );
     }
@@ -941,7 +950,6 @@ export async function runFuzzAction(
     // Fingerprinting configuration
     enableFingerprinting: options.fingerprint || false,
     onFingerprint: (fingerprint) => {
-      fingerprintResult = fingerprint;
       spinner.stop();
       printFingerprintResult(fingerprint);
 
@@ -950,7 +958,7 @@ export async function runFuzzAction(
       if (disabledCount > 0) {
         console.log(
           chalk.cyan(
-            `\n🎯 Optimized: ${disabledCount} irrelevant generator(s) disabled based on ${fingerprint.language} detection\n`,
+            `\n Optimized: ${disabledCount} irrelevant generator(s) disabled based on ${fingerprint.language} detection\n`,
           ),
         );
       }
@@ -963,10 +971,9 @@ export async function runFuzzAction(
         `${chalk.yellow("Errors: " + progress.errorsEncountered)}`;
     },
     onVulnerability: (detection, payload) => {
-      vulnerabilitiesFound++;
       if (options.verbose) {
         spinner.stop();
-        console.log(chalk.red(`\n🚨 ${t("vulnerability_found")}:`));
+        console.log(chalk.red(`\n ${t("vulnerability_found")}:`));
         console.log(
           chalk.dim(`   Payload: ${String(payload.value).substring(0, 50)}...`),
         );
@@ -1041,9 +1048,7 @@ export async function runFuzzAction(
         spinner.stop();
         console.log("");
         console.log(
-          chalk.red.bold(
-            `🚨 ${t("fuzz_panic_stop")}: ${t("quota_stop_title")}`,
-          ),
+          chalk.red.bold(` ${t("fuzz_panic_stop")}: ${t("quota_stop_title")}`),
         );
         console.log("");
         console.log(chalk.yellow(t("quota_stop_msg")));
@@ -1067,7 +1072,7 @@ export async function runFuzzAction(
         }
 
         await fuzzTarget.close();
-        return;
+        return 1;
       }
       // Re-throw other errors
       throw error;
@@ -1085,7 +1090,7 @@ export async function runFuzzAction(
       );
 
       console.log("");
-      console.log(chalk.red.bold("🚨 " + t("vulnerabilities_detected") + ":"));
+      console.log(chalk.red.bold(" " + t("vulnerabilities_detected") + ":"));
 
       session.vulnerabilities.forEach((v, i) => printVulnerability(v, i));
     } else {
@@ -1098,7 +1103,7 @@ export async function runFuzzAction(
     // Errors detail (if verbose)
     if (options.verbose && session.errors.length > 0) {
       console.log("");
-      console.log(chalk.yellow.bold("⚠️  " + t("errors_during_fuzzing") + ":"));
+      console.log(chalk.yellow.bold("  " + t("errors_during_fuzzing") + ":"));
       session.errors.slice(0, 5).forEach((err, i) => {
         console.log(chalk.yellow(`  [${i + 1}] ${err.message}`));
         if (err.stack) {
@@ -1113,22 +1118,22 @@ export async function runFuzzAction(
     // Save reports (always, defaulting to ./reports)
     await saveReports(session, target, options);
 
-    // Exit code based on vulnerabilities
+    // Return the result to the command boundary. This action can also be used
+    // by the interactive shell and tests, where mutating process.exitCode
+    // would incorrectly affect the host process.
     if (session.vulnerabilities.length > 0) {
       const hasCriticalFindings = session.vulnerabilities.some(
         (v) => v.severity === "critical",
       );
-      if (hasCriticalFindings) {
-        process.exitCode = 2; // Critical vulnerabilities
-      } else {
-        process.exitCode = 1; // Non-critical vulnerabilities
-      }
+      return hasCriticalFindings ? 2 : 1;
     }
+
+    return 0;
   } catch (error) {
     await fuzzTarget.close();
     spinner.fail(t("fuzz_failed"));
     console.log("");
-    console.error(chalk.red.bold("❌ " + t("fuzz_error") + ":"));
+    console.error(chalk.red.bold(" " + t("fuzz_error") + ":"));
     console.error(
       chalk.red(error instanceof Error ? error.message : String(error)),
     );
@@ -1139,7 +1144,7 @@ export async function runFuzzAction(
     }
 
     console.log("");
-    console.log(chalk.yellow.bold("💡 " + t("suggestions") + ":"));
+    console.log(chalk.yellow.bold(" " + t("suggestions") + ":"));
     console.log(chalk.gray("• ") + t("check_server_running"));
     console.log(
       chalk.gray("• ") +
@@ -1151,5 +1156,6 @@ export async function runFuzzAction(
       chalk.gray("• ") + t("reduce_concurrency") + ": --concurrency 1",
     );
     console.log("");
+    return 1;
   }
 }

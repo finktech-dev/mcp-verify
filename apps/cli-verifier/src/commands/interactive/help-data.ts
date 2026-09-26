@@ -2,7 +2,7 @@
  * Copyright (c) 2026 FinkTech
  *
  * This file is part of MCP Verify.
- * Licensed under the GNU Affero General Public License v3.0 (AGPL-3.0).
+ * Licensed under the MIT License.
  * See LICENSE file in the project root for full license information.
  */
 
@@ -34,28 +34,20 @@ export const HELP_COMMANDS: HelpCommand[] = [
     aliases: ["v"],
     category: "security",
     descKey: "cmd_validate_desc",
-    example: 'validate "node server.js" --format html --fuzz',
+    example: 'validate "node server.js" --format json',
     flags: [
       "--format <json|html|sarif>",
-      "--fuzz",
-      "--llm <provider>",
       "--sandbox",
       "--save-baseline <path>",
     ],
   },
   {
-    name: "fuzz",
-    aliases: ["f"],
+    name: "scan-config",
+    aliases: [],
     category: "security",
-    descKey: "cmd_fuzz_desc",
-    example: 'fuzz "node server.js" --tool echo --param input',
-    flags: [
-      "--tool <name>",
-      "--param <name>",
-      "--generators all",
-      "--timeout 5000",
-      "--detectors all",
-    ],
+    descKey: "cmd_scan_config_desc",
+    example: "scan-config .mcp.json",
+    flags: ["--all", "--quiet"],
   },
   {
     name: "doctor",
@@ -65,55 +57,7 @@ export const HELP_COMMANDS: HelpCommand[] = [
     example: "doctor http://localhost:3000 --verbose",
     flags: ["--verbose", "--watch", "--html", "--json", "--output <path>"],
   },
-  {
-    name: "stress",
-    aliases: ["s"],
-    category: "security",
-    descKey: "cmd_stress_desc",
-    example: 'stress "node server.js" --users 10 --duration 30s',
-    flags: ["--users <n>", "--duration <s>", "--transport <type>"],
-  },
-  {
-    name: "inspect",
-    aliases: ["ls"],
-    category: "security",
-    descKey: "cmd_inspect_desc",
-    example: 'inspect "node server.js"',
-    flags: ["--transport <type>"],
-  },
-  {
-    name: "fingerprint",
-    aliases: ["stack"],
-    category: "security",
-    descKey: "cmd_fingerprint_desc",
-    example: 'fingerprint "node server.js"',
-    flags: ["--transport <type>"],
-  },
-  {
-    name: "examples",
-    aliases: ["ex"],
-    category: "security",
-    descKey: "cmd_examples_desc",
-    example: "examples",
-  },
-
   // ── Infraestructura ────────────────────────────────────────────────────────
-  {
-    name: "proxy",
-    aliases: [],
-    category: "infra",
-    descKey: "cmd_proxy_desc",
-    example: 'proxy "node server.js" --port 8080 --log-file audit.log',
-    flags: ["--port <n>", "--log-file <path>", "--timeout <ms>"],
-  },
-  {
-    name: "dashboard",
-    aliases: [],
-    category: "infra",
-    descKey: "cmd_dashboard_desc",
-    example: 'dashboard "node server.js"',
-    flags: ["--port <n>", "--transport <type>"],
-  },
   {
     name: "mock",
     aliases: ["m"],
@@ -121,14 +65,6 @@ export const HELP_COMMANDS: HelpCommand[] = [
     descKey: "cmd_mock_desc",
     example: "mock --port 3000",
     flags: ["--port <n>", "--timeout <ms>"],
-  },
-  {
-    name: "play",
-    aliases: [],
-    category: "infra",
-    descKey: "cmd_playground_desc",
-    example: 'play "node server.js"',
-    flags: ["--port <n>", "--list-only"],
   },
   {
     name: "init",

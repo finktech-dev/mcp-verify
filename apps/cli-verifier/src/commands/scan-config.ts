@@ -2,7 +2,7 @@
  * Copyright (c) 2026 FinkTech
  *
  * This file is part of MCP Verify.
- * Licensed under the GNU Affero General Public License v3.0 (AGPL-3.0).
+ * Licensed under the MIT License.
  * See LICENSE file in the project root for full license information.
  */
 /**
@@ -33,7 +33,7 @@ import type { SecurityFinding } from "@finktech/core";
  * Scan configuration file for malicious patterns
  */
 export async function runScanConfigAction(
-  configPath: string,
+  configPath: string | undefined,
   options: {
     all?: boolean;
     quiet?: boolean;
@@ -44,6 +44,11 @@ export async function runScanConfigAction(
   // If --all flag, scan common config file locations
   if (options.all) {
     return await scanAllConfigFiles(rule, options.quiet || false);
+  }
+
+  if (!configPath) {
+    console.error(chalk.red(t("scan_config_usage")));
+    return 1;
   }
 
   // Otherwise scan specific file
@@ -64,7 +69,7 @@ export async function runScanConfigAction(
     if (hasCritical) {
       console.log(
         chalk.red.bold(
-          "\n⚠️  CRITICAL FINDINGS DETECTED - DO NOT EXECUTE THIS PROJECT\n",
+          "\n  CRITICAL FINDINGS DETECTED - DO NOT EXECUTE THIS PROJECT\n",
         ),
       );
       return 2; // Critical security exit code
@@ -120,13 +125,13 @@ async function scanAllConfigFiles(
     const findings = rule.evaluateConfigFile(configPath);
 
     if (findings.length === 0 || findings.every((f) => f.severity === "info")) {
-      console.log(chalk.green(`  ✓ ${path.relative(cwd, configPath)} - clean`));
+      console.log(chalk.green(`   ${path.relative(cwd, configPath)} - clean`));
       continue;
     }
 
     console.log(
       chalk.yellow(
-        `  ⚠️  ${path.relative(cwd, configPath)} - ${findings.length} finding(s)`,
+        `    ${path.relative(cwd, configPath)} - ${findings.length} finding(s)`,
       ),
     );
 
@@ -145,17 +150,17 @@ async function scanAllConfigFiles(
   if (criticalCount > 0) {
     console.log(
       chalk.red.bold(
-        "\n⚠️  CRITICAL FINDINGS DETECTED - DO NOT EXECUTE THIS PROJECT\n",
+        "\n  CRITICAL FINDINGS DETECTED - DO NOT EXECUTE THIS PROJECT\n",
       ),
     );
     return 2;
   } else if (totalFindings > 0) {
     console.log(
-      chalk.yellow("\n⚠️  Warnings found. Review before proceeding.\n"),
+      chalk.yellow("\n  Warnings found. Review before proceeding.\n"),
     );
     return 1;
   } else {
-    console.log(chalk.green("\n✓ All config files are clean.\n"));
+    console.log(chalk.green("\n All config files are clean.\n"));
     return 0;
   }
 }
@@ -169,7 +174,7 @@ function displayScanResults(
   compact: boolean,
 ): void {
   if (findings.length === 0) {
-    console.log(chalk.green(`\n✓ Config file is clean: ${configPath}\n`));
+    console.log(chalk.green(`\n Config file is clean: ${configPath}\n`));
     return;
   }
 
@@ -185,10 +190,10 @@ function displayScanResults(
 
   const status =
     criticalFindings.length > 0
-      ? chalk.red.bold("❌ MALICIOUS")
+      ? chalk.red.bold(" MALICIOUS")
       : highFindings.length > 0
-        ? chalk.yellow("⚠️  SUSPICIOUS")
-        : chalk.green("✓ Clean");
+        ? chalk.yellow("  SUSPICIOUS")
+        : chalk.green(" Clean");
 
   console.log(`  Status: ${status}`);
 
@@ -227,7 +232,7 @@ function displayScanResults(
     console.log(`    ${finding.message}`);
 
     if (finding.remediation && !compact) {
-      console.log(chalk.dim(`    → ${finding.remediation}`));
+      console.log(chalk.dim(`     ${finding.remediation}`));
     }
   }
 

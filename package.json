@@ -2,7 +2,7 @@
   "name": "@finktech/mcp-verify",
   "version": "1.0.2",
   "private": false,
-  "description": "Enterprise-grade security validation and testing tool for MCP servers (Model Context Protocol)",
+  "description": "Security validation and testing tools for Model Context Protocol servers",
   "workspaces": [
     "libs/*",
     "apps/*"
@@ -12,20 +12,11 @@
     "hono": ">=4.12.23"
   },
   "main": "dist/mcp-verify.js",
-  "types": "dist/index.d.ts",
   "bin": {
-    "mcp-verify": "dist/mcp-verify.js",
-    "mcp-verify-server": "dist/mcp-server.js"
+    "mcp-verify": "dist/mcp-verify.js"
   },
   "files": [
-    "dist/**/*.js",
-    "dist/**/*.d.ts",
-    "!dist/**/*.map",
-    "!dist/.sea/**",
-    "!dist/bin/**",
-    "!**/AGENTS.md",
-    "!**/claude.md",
-    "!demo-vhs/**",
+    "dist/mcp-verify.js",
     "LICENSE",
     "README.md",
     "CHANGELOG.md",
@@ -35,20 +26,14 @@
     "SECURITY_TESTING.md",
     "CONTRIBUTING.md",
     "CODE_OF_CONDUCT.md",
-    "AI_DEVELOPMENT.md",
-    "API_REFERENCE.md",
-    "ARCHITECTURE.md",
-    "CODE_MAP.md",
     "COMMANDS.md",
-    "DEVELOPMENT.md",
-    "GLOSSARY.md",
-    "REGRESSION-DETECTION.md",
-    "RELEASE_NOTES.md",
-    "SECURITY_SCORING.md",
+    "docs/DEFERRED_CLI_COMMANDS.md",
+    "docs/REMOVED_SURFACES.md",
     "TESTING.md",
     "TROUBLESHOOTING.md"
   ],
   "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.25.3",
     "acorn": "^8.15.0",
     "acorn-walk": "^8.3.4",
     "ajv": "^8.17.1",
@@ -67,30 +52,34 @@
   "scripts": {
     "dev": "ts-node apps/cli-verifier/src/bin/index.ts",
     "start": "node dist/mcp-verify.js",
-    "build": "tsc --emitDeclarationOnly --outDir dist --project tsconfig.build.json && node tools/scripts/bundle.js",
+    "clean": "node tools/scripts/clean-dist.js",
+    "build": "npm run clean && tsc --emitDeclarationOnly --outDir dist --project tsconfig.build.json && node tools/scripts/bundle.js",
     "compile": "node tools/scripts/compile-sea.js",
     "compile:all": "node tools/scripts/compile-sea.js --all",
     "compile:linux": "node tools/scripts/compile-sea.js --target linux",
     "compile:macos": "node tools/scripts/compile-sea.js --target macos",
     "compile:win": "node tools/scripts/compile-sea.js --target windows",
-    "compile:server": "node tools/scripts/compile-sea.js --server",
     "postcompile": "node tools/scripts/copy-native-addons.js",
     "type-check": "tsc --noEmit --project tsconfig.build.json",
     "type-check:strict": "tsc --noEmit",
-    "lint": "eslint . --ext .ts,.js --max-warnings 1000",
+    "lint": "eslint . --ext .ts,.js --max-warnings 922",
     "lint:fix": "eslint . --ext .ts,.js --fix",
     "format": "prettier --write \"**/*.{ts,js,json,md}\"",
     "format:check": "prettier --check \"**/*.{ts,js,json,md}\"",
-    "test": "jest",
-    "test:unit": "jest --testPathPattern=\\.unit\\.test\\.ts$",
-    "test:integration": "jest --testPathPattern=\\.integration\\.test\\.ts$",
-    "test:e2e": "jest --testPathPattern=\\.e2e\\.test\\.ts$",
-    "test:watch": "jest --watch",
-    "test:coverage": "jest --coverage",
-    "test:ci": "jest --ci --coverage --maxWorkers=2",
+    "test": "npm run test:unit",
+    "test:unit": "jest --config jest.unit.config.js",
+    "test:security": "jest --config jest.security.config.js",
+    "test:scenario": "jest --config jest.scenario.config.js",
+    "test:integration": "npm run test:scenario",
+    "test:release-smoke": "node dist/mcp-verify.js --version && node dist/mcp-verify.js --help",
+    "pack:check": "npm pack --dry-run --ignore-scripts",
+    "test:all": "npm run test:unit && npm run test:security && npm run test:scenario",
+    "test:watch": "jest --config jest.unit.config.js --watch",
+    "test:coverage": "npm run test:unit -- --coverage",
+    "test:ci": "npm run test:unit -- --ci --coverage",
     "preview:report": "ts-node tools/scripts/generate-report-preview.ts",
-    "prepublishOnly": "npm run build",
-    "prepare": "husky install || true"
+    "prepublishOnly": "npm run type-check && npm run lint && npm run test:unit && npm run test:security && npm run test:scenario && npm run build && npm run test:release-smoke && npm run pack:check",
+    "setup-hooks": "husky install"
   },
   "keywords": [
     "mcp",
@@ -112,7 +101,6 @@
     "anthropic",
     "owasp",
     "owasp-top-10",
-    "enterprise",
     "devsecops",
     "appsec"
   ],
@@ -121,7 +109,7 @@
     "email": "hello.finksystems@gmail.com",
     "url": "https://github.com/FinkTech"
   },
-  "license": "AGPL-3.0",
+  "license": "MIT",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/FinkTech/mcp-verify.git"
@@ -141,7 +129,7 @@
     "@types/update-notifier": "^6.0.8",
     "@typescript-eslint/eslint-plugin": "^8.57.2",
     "@typescript-eslint/parser": "^8.57.2",
-    "esbuild": "^0.27.2",
+    "esbuild": "^0.28.2",
     "esbuild-plugin-tsconfig-paths": "^1.0.2",
     "eslint": "^8.50.0",
     "eslint-config-prettier": "^9.0.0",
@@ -168,11 +156,11 @@
     }
   },
   "lint-staged": {
-    "*.{ts,js}": [
-      "eslint --fix",
+    "*.ts": [
+      "eslint --max-warnings=0 --fix",
       "prettier --write"
     ],
-    "*.{json,md}": [
+    "*.{js,json,md}": [
       "prettier --write"
     ]
   }

@@ -2,7 +2,7 @@
  * Copyright (c) 2026 FinkTech
  *
  * This file is part of MCP Verify.
- * Licensed under the GNU Affero General Public License v3.0 (AGPL-3.0).
+ * Licensed under the MIT License.
  * See LICENSE file in the project root for full license information.
  */
 /**
@@ -11,27 +11,31 @@
  * Provides translation functions for CLI messages
  */
 
-import {
-  Language,
-  translations,
-} from "../../../../libs/core/domain/reporting/i18n";
+import { translations, type Language } from "../../i18n/catalog";
 import * as os from "os";
 import * as fs from "fs";
 import * as path from "path";
 
 let currentLanguage: Language = "en";
 
+export const SUPPORTED_LANGUAGES = ["en", "es"] as const;
+
+export function isLanguage(value: unknown): value is Language {
+  return (
+    typeof value === "string" && SUPPORTED_LANGUAGES.includes(value as Language)
+  );
+}
+
 /**
  * Get user's preferred language from:
  * 1. Environment variable MCP_VERIFY_LANG
  * 2. Config file (~/.mcp-verify/config.json)
- * 3. System locale
- * 4. Default to 'en'
+ * 3. Default to 'en'
  */
 export function detectLanguage(): Language {
   // 1. Check environment variable
   const envLang = process.env.MCP_VERIFY_LANG;
-  if (envLang === "es" || envLang === "en") {
+  if (isLanguage(envLang)) {
     return envLang;
   }
 
@@ -40,22 +44,20 @@ export function detectLanguage(): Language {
     const configDir = path.join(os.homedir(), ".mcp-verify");
     const configFile = path.join(configDir, "config.json");
     if (fs.existsSync(configFile)) {
-      const config = JSON.parse(fs.readFileSync(configFile, "utf-8"));
-      if (config.language === "es" || config.language === "en") {
-        return config.language;
+      const config: unknown = JSON.parse(fs.readFileSync(configFile, "utf-8"));
+      if (
+        typeof config === "object" &&
+        config !== null &&
+        isLanguage((config as Record<string, unknown>).language)
+      ) {
+        return (config as Record<string, Language>).language;
       }
     }
   } catch (e) {
     // Ignore config file errors
   }
 
-  // 3. Check system locale
-  const locale = Intl.DateTimeFormat().resolvedOptions().locale;
-  if (locale.startsWith("es")) {
-    return "es";
-  }
-
-  // 4. Default to English
+  // 3. English is the product default; system locale does not override it.
   return "en";
 }
 
@@ -123,12 +125,21 @@ export function saveLanguagePreference(lang: Language): void {
 
     let config: Record<string, unknown> = {};
     if (fs.existsSync(configFile)) {
-      config = JSON.parse(fs.readFileSync(configFile, "utf-8"));
+      const parsed: unknown = JSON.parse(fs.readFileSync(configFile, "utf-8"));
+      if (
+        typeof parsed === "object" &&
+        parsed !== null &&
+        !Array.isArray(parsed)
+      ) {
+        config = parsed as Record<string, unknown>;
+      }
     }
 
     config.language = lang;
-    fs.writeFileSync(configFile, JSON.stringify(config, null, 2));
-  } catch (e) {
+    const temporaryFile = `${configFile}.tmp`;
+    fs.writeFileSync(temporaryFile, JSON.stringify(config, null, 2), "utf-8");
+    fs.renameSync(temporaryFile, configFile);
+  } catch {
     // Silently fail - not critical
   }
 }

@@ -2,7 +2,7 @@
  * Copyright (c) 2026 FinkTech
  *
  * This file is part of MCP Verify.
- * Licensed under the GNU Affero General Public License v3.0 (AGPL-3.0).
+ * Licensed under the MIT License.
  * See LICENSE file in the project root for full license information.
  */
 /**
@@ -10,7 +10,6 @@
  *
  * Level 1   — no space yet              → complete command name
  * Level 2   — partial/full `--` flag    → complete command flags
- * Level 2.5 — after `--tool` flag       → complete available tool names (dynamic)
  * Level 3   — looks like a path         → list filesystem entries
  */
 
@@ -29,12 +28,10 @@ export const COMMAND_FLAGS: Readonly<Record<string, string[]>> = {
     "--transport",
     "--html",
     "--sandbox",
-    "--fuzz",
     "--lang",
     "--rules",
     "--exclude-rules",
     "--min-severity",
-    "--llm",
     "--save",
     "--verbose",
     "--save-baseline",
@@ -42,22 +39,7 @@ export const COMMAND_FLAGS: Readonly<Record<string, string[]>> = {
     "--fail-on-degradation",
     "--allowed-score-drop",
   ],
-  fuzz: [
-    "--tool",
-    "--transport",
-    "--concurrency",
-    "--timeout",
-    "--rate-limit",
-    "--param",
-    "--generators",
-    "--detectors",
-    "--stop-on-first",
-    "--fingerprint",
-    "--verbose",
-    "--output",
-    "--format",
-    "--header",
-  ],
+  "scan-config": ["--all", "--quiet"],
   doctor: [
     "--transport",
     "--watch",
@@ -70,14 +52,8 @@ export const COMMAND_FLAGS: Readonly<Record<string, string[]>> = {
     "--fix-integrity",
     "--clean-history",
   ],
-  stress: ["--transport", "--users", "--duration", "--verbose"],
-  dashboard: ["--transport", "--port", "--timeout"],
-  play: ["--port", "--transport", "--list-only"],
-  proxy: ["--port", "--timeout", "--log-file"],
   mock: ["--port", "--timeout"],
   init: ["--dir", "--name", "--template"],
-  fingerprint: ["--transport"],
-  inspect: ["--transport"],
   set: ["target", "lang"],
   lang: ["en", "es"],
   history: ["--last", "--clear"],
@@ -92,17 +68,10 @@ export const COMMAND_FLAGS: Readonly<Record<string, string[]>> = {
 
 export const PRIMARY_COMMANDS: readonly string[] = [
   "validate",
-  "fuzz",
+  "scan-config",
   "doctor",
-  "stress",
-  "dashboard",
-  "play",
-  "proxy",
   "mock",
   "init",
-  "fingerprint",
-  "inspect",
-  "examples",
   "history",
   "config",
   "context",
@@ -122,16 +91,11 @@ export const PRIMARY_COMMANDS: readonly string[] = [
 export const ALL_COMMANDS: readonly string[] = [
   ...PRIMARY_COMMANDS,
   "v",
-  "f",
   "d",
-  "s",
   "m",
-  "ex",
   "cfg",
   "language",
   "version",
-  "stack",
-  "ls",
   "github",
   "gh",
   "linkedin",
@@ -151,7 +115,7 @@ export class ContextCompleter {
    * readline-compatible completer function.
    * Returns `[completions, originalLine]` as required by readline.
    */
-  static complete(line: string, session?: ShellSession): [string[], string] {
+  static complete(line: string, _session?: ShellSession): [string[], string] {
     const trimmed = line.trimStart();
 
     // Level 1: complete command name (no space yet)
@@ -182,25 +146,6 @@ export class ContextCompleter {
       return [completions, line];
     }
 
-    // Level 2.5: dynamic tool-name completion after --tool
-    const prevToken = tokens.length >= 2 ? tokens[tokens.length - 2] : "";
-    if (prevToken === "--tool" && session?.state.availableTools) {
-      const toolHits = session.state.availableTools.filter((toolName) =>
-        toolName.toLowerCase().startsWith(partial.toLowerCase()),
-      );
-      const completions = toolHits.map((toolName) =>
-        startingNewArg
-          ? line + toolName
-          : line.slice(0, line.lastIndexOf(partial)) + toolName,
-      );
-      return [
-        completions.length
-          ? completions
-          : session.state.availableTools.slice(0, 10),
-        line,
-      ];
-    }
-
     // Level 3: filesystem path completion
     const looksLikePath =
       partial.startsWith("/") ||
@@ -229,35 +174,19 @@ export class ContextCompleter {
   private static resolveAlias(alias: string): string {
     const map: Record<string, string> = {
       v: "validate",
-      f: "fuzz",
       d: "doctor",
-      s: "stress",
       m: "mock",
-      ex: "examples",
       cfg: "config",
       h: "help",
       q: "exit",
       quit: "exit",
       cls: "clear",
-      stack: "fingerprint",
-      ls: "inspect",
     };
     return map[alias] ?? alias;
   }
 
   private static commandExpectsPath(cmd: string): boolean {
-    return [
-      "validate",
-      "fuzz",
-      "doctor",
-      "stress",
-      "dashboard",
-      "play",
-      "proxy",
-      "init",
-      "fingerprint",
-      "inspect",
-    ].includes(cmd);
+    return ["validate", "scan-config", "doctor", "init"].includes(cmd);
   }
 
   /** Lists filesystem entries matching the given prefix. Capped at 20 results. */

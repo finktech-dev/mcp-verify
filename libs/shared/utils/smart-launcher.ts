@@ -2,7 +2,7 @@
  * Copyright (c) 2026 FinkTech
  *
  * This file is part of MCP Verify.
- * Licensed under the GNU Affero General Public License v3.0 (AGPL-3.0).
+ * Licensed under the MIT License.
  * See LICENSE file in the project root for full license information.
  */
 import fs from "fs";
@@ -35,8 +35,12 @@ export class SmartLauncher {
         return { command: "node", args: [target] };
 
       case ".ts":
-        // Requires ts-node to be installed or accessible via npx
-        return { command: "npx", args: ["ts-node", target] };
+        // Running a target must not type-check the entire caller workspace.
+        // Type checking belongs to the project's separate quality step.
+        return {
+          command: "npx",
+          args: ["ts-node", "--transpile-only", target],
+        };
 
       case ".py":
         // On Windows often 'python', on Mac/Linux often 'python3'.

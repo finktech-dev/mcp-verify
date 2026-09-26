@@ -1,0 +1,34 @@
+name: Bug report
+description: Report an observable defect in a supported or reassessment product.
+title: "bug: "
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: "Do not include credentials, private server configuration, or unredacted reports."
+  - type: dropdown
+    id: product
+    attributes:
+      label: Product
+      options:
+        - CLI verifier
+        - MCP server
+        - VS Code extension
+        - Shared library
+        - Documentation
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Reproduction
+      description: Minimal steps, command, fixture, and expected versus actual behavior.
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: Node version, operating system, package version, and relevant redacted logs.
+    validations:
+      required: true
