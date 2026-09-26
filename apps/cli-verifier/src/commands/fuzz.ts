@@ -705,14 +705,14 @@ async function saveReports(
 export async function runFuzzAction(
   target: string,
   options: FuzzOptions,
-): Promise<void> {
+): Promise<0 | 1 | 2> {
   // Check disclaimer before proceeding
   const { checkDisclaimer } = await import("../utils/disclaimer-manager");
   const accepted = await checkDisclaimer("fuzz");
 
   if (!accepted) {
     console.log(chalk.yellow(t("disclaimer_aborted")));
-    return;
+    return 0;
   }
 
   const spinner = ora(t("initializing_fuzzer")).start();
@@ -1072,7 +1072,7 @@ export async function runFuzzAction(
         }
 
         await fuzzTarget.close();
-        return;
+        return 1;
       }
       // Re-throw other errors
       throw error;
@@ -1118,17 +1118,17 @@ export async function runFuzzAction(
     // Save reports (always, defaulting to ./reports)
     await saveReports(session, target, options);
 
-    // Exit code based on vulnerabilities
+    // Return the result to the command boundary. This action can also be used
+    // by the interactive shell and tests, where mutating process.exitCode
+    // would incorrectly affect the host process.
     if (session.vulnerabilities.length > 0) {
       const hasCriticalFindings = session.vulnerabilities.some(
         (v) => v.severity === "critical",
       );
-      if (hasCriticalFindings) {
-        process.exitCode = 2; // Critical vulnerabilities
-      } else {
-        process.exitCode = 1; // Non-critical vulnerabilities
-      }
+      return hasCriticalFindings ? 2 : 1;
     }
+
+    return 0;
   } catch (error) {
     await fuzzTarget.close();
     spinner.fail(t("fuzz_failed"));
@@ -1156,5 +1156,6 @@ export async function runFuzzAction(
       chalk.gray("• ") + t("reduce_concurrency") + ": --concurrency 1",
     );
     console.log("");
+    return 1;
   }
 }

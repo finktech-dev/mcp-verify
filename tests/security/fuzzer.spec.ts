@@ -86,35 +86,42 @@ describe("Fuzzer prompt-injection scenario", () => {
     fs.rmSync(reportDirectory, { recursive: true, force: true });
   });
 
-  it("records an inspectable prompt-injection finding and feedback statistics", async () => {
-    await runFuzzAction(`node "${fixturePath}"`, {
-      tool: "generate_response",
-      generators: "prompt-injection",
-      detectors: "prompt-leak,jailbreak",
-      output: reportDirectory,
-      format: "json",
-      verbose: true,
-      concurrency: "1",
-      timeout: "1000",
-      stopOnFirst: true,
-    });
+  it(
+    "[regression][boundary] returns a finding status without changing the host process exit code",
+    async () => {
+      const initialExitCode = process.exitCode;
+      const exitCode = await runFuzzAction(`node "${fixturePath}"`, {
+        tool: "generate_response",
+        generators: "prompt-injection",
+        detectors: "prompt-leak,jailbreak",
+        output: reportDirectory,
+        format: "json",
+        verbose: true,
+        concurrency: "1",
+        timeout: "1000",
+        stopOnFirst: true,
+      });
 
-    const session = readRawSession(reportDirectory);
-    const finding = session.vulnerabilities.find(
-      (candidate) =>
-        candidate.detectorId === "prompt-leak" ||
-        candidate.detectorId === "jailbreak",
-    );
+      const session = readRawSession(reportDirectory);
+      const finding = session.vulnerabilities.find(
+        (candidate) =>
+          candidate.detectorId === "prompt-leak" ||
+          candidate.detectorId === "jailbreak",
+      );
 
-    expect(session.id).not.toHaveLength(0);
-    expect(session.payloadsExecuted).toBeGreaterThan(0);
-    expect(finding).toBeDefined();
-    expect(finding?.severity).toMatch(/high|critical|medium/i);
-    expect(finding?.remediation).toEqual(expect.any(String));
-    expect(session.feedbackStats).toMatchObject({
-      interestingResponsesFound: expect.any(Number),
-      mutationsInjected: expect.any(Number),
-      mutationRoundsCompleted: expect.any(Number),
-    });
-  }, 30_000);
+      expect(session.id).not.toHaveLength(0);
+      expect(session.payloadsExecuted).toBeGreaterThan(0);
+      expect(exitCode).toBe(1);
+      expect(process.exitCode).toBe(initialExitCode);
+      expect(finding).toBeDefined();
+      expect(finding?.severity).toMatch(/high|critical|medium/i);
+      expect(finding?.remediation).toEqual(expect.any(String));
+      expect(session.feedbackStats).toMatchObject({
+        interestingResponsesFound: expect.any(Number),
+        mutationsInjected: expect.any(Number),
+        mutationRoundsCompleted: expect.any(Number),
+      });
+    },
+    30_000,
+  );
 });
