@@ -2,7 +2,7 @@
  * Copyright (c) 2026 FinkTech
  *
  * This file is part of MCP Verify.
- * Licensed under the GNU Affero General Public License v3.0 (AGPL-3.0).
+ * Licensed under the MIT License.
  * See LICENSE file in the project root for full license information.
  */
 /**
@@ -31,6 +31,7 @@ export * from "./utils/user-agent";
 export * from "./utils/git-info";
 export * from "./utils/json";
 export * from "./utils/native-loader";
+export * from "./i18n/catalog";
 
 // CLI Utilities
 export * from "./utils/cli/error-formatter";
