@@ -2,7 +2,7 @@
  * Copyright (c) 2026 FinkTech
  *
  * This file is part of MCP Verify.
- * Licensed under the GNU Affero General Public License v3.0 (AGPL-3.0).
+ * Licensed under the MIT License.
  * See LICENSE file in the project root for full license information.
  */
 /**
@@ -22,7 +22,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 
 import type { Report } from "@finktech/core/domain/mcp-server/entities/validation.types";
-import type { Language } from "@finktech/core/domain/reporting/i18n";
+import type { Language } from "../i18n/catalog";
 import type { BaselineComparison } from "@finktech/core/domain/reporting/html-generator";
 
 // ---------------------------------------------------------------------------
@@ -215,6 +215,26 @@ export class ReportingService {
       }
     }
 
+    if (includeRawSession && rawSession !== undefined) {
+      try {
+        const dir = organizeByFormat
+          ? path.join(resolvedOutputDir, dateDir, command, "raw", language)
+          : path.join(resolvedOutputDir, dateDir);
+        fs.mkdirSync(dir, { recursive: true });
+
+        const p = path.join(dir, `${baseFilename}-session.json`);
+        const temporaryPath = `${p}.${process.pid}.tmp`;
+        fs.writeFileSync(temporaryPath, JSON.stringify(rawSession, null, 2));
+        fs.renameSync(temporaryPath, p);
+        result.paths.rawSession = p;
+      } catch (e: unknown) {
+        result.errors.push({
+          format: "raw-session",
+          message: (e as Error).message,
+        });
+      }
+    }
+
     // 2. Save Markdown (Graceful fallback)
     if (effectiveFormats.includes("markdown")) {
       try {
@@ -342,33 +362,33 @@ export class ReportingService {
     lang: Language,
   ): string {
     const getScoreEmoji = (score: number) => {
-      if (score >= 90) return "🟢";
-      if (score >= 70) return "🟡";
-      return "🔴";
+      if (score >= 90) return "";
+      if (score >= 70) return "";
+      return "";
     };
 
     const lines = [];
-    lines.push("# ⚔️ MCP Server Comparison Matrix");
+    lines.push("#  MCP Server Comparison Matrix");
     lines.push("");
     lines.push(`**Date:** ${new Date().toLocaleString()}`);
     lines.push(`**Servers Analyzed:** ${results.length}`);
     lines.push("");
 
-    lines.push("## 🏆 Executive Summary");
+    lines.push("##  Executive Summary");
     if (analysis.mostSecure) {
       lines.push(
-        `- **🛡️ Most Secure:** ${analysis.mostSecure.name} (**${analysis.mostSecure.scores.security}**/100)`,
+        `- ** Most Secure:** ${analysis.mostSecure.name} (**${analysis.mostSecure.scores.security}**/100)`,
       );
     }
     if (analysis.highestQuality) {
       lines.push(
-        `- **💎 Highest Quality:** ${analysis.highestQuality.name} (**${analysis.highestQuality.scores.quality}**/100)`,
+        `- ** Highest Quality:** ${analysis.highestQuality.name} (**${analysis.highestQuality.scores.quality}**/100)`,
       );
     }
     lines.push(`- **Average Security:** ${analysis.avgSecurity}/100`);
     lines.push("");
 
-    lines.push("## 📊 Comparison Table");
+    lines.push("##  Comparison Table");
     lines.push("");
     lines.push(
       "| Server | Security | Quality | Protocol | Findings | Status |",
@@ -381,23 +401,21 @@ export class ReportingService {
         const qual = `${getScoreEmoji(r.scores.quality)} ${r.scores.quality}`;
         const proto = `${getScoreEmoji(r.scores.protocol)} ${r.scores.protocol}`;
         const findings = r.findings.total;
-        const status = r.scores.security < 70 ? "⚠️ Review" : "✅ Valid";
+        const status = r.scores.security < 70 ? " Review" : " Valid";
 
         lines.push(
           `| **${r.name}** | ${sec} | ${qual} | ${proto} | ${findings} | ${status} |`,
         );
       } else {
-        lines.push(
-          `| **${r.name}** | ❌ Error | N/A | N/A | N/A | ❌ Failed |`,
-        );
+        lines.push(`| **${r.name}** |  Error | N/A | N/A | N/A |  Failed |`);
       }
     }
 
     lines.push("");
-    lines.push("## 📝 Detailed Insights");
+    lines.push("##  Detailed Insights");
 
     for (const r of results.filter((res) => res.status === "validated")) {
-      lines.push(`### 🔹 ${r.name}`);
+      lines.push(`###  ${r.name}`);
       lines.push(
         `- **Capabilities:** Tools: ${r.capabilities.tools}, Resources: ${r.capabilities.resources}, Prompts: ${r.capabilities.prompts}`,
       );
@@ -411,13 +429,12 @@ export class ReportingService {
   private static renderDoctorMarkdown(
     sections: ReadonlyArray<DoctorSectionResult>,
   ): string {
-    let md = `# 🩺 mcp-verify Diagnostic Report\n\n`;
+    let md = `#  mcp-verify Diagnostic Report\n\n`;
     sections.forEach((s) => {
       md += `## ${s.icon} ${s.title}\n\n`;
       md += `| Status | Check | Value | Message |\n| :--- | :--- | :--- | :--- |\n`;
       s.checks.forEach((c) => {
-        const icon =
-          c.status === "pass" ? "✅" : c.status === "fail" ? "❌" : "⚠️";
+        const icon = c.status === "pass" ? "" : c.status === "fail" ? "" : "";
         md += `| ${icon} | ${c.name} | \`${c.value || "N/A"}\` | ${c.message || ""} |\n`;
       });
       if (s.verboseLogs && s.verboseLogs.length > 0) {
