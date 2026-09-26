@@ -40,13 +40,13 @@ describe("ReportingService", () => {
     expect(saved.errors).toEqual([]);
     expect(saved.paths.rawSession).toBeDefined();
     expect(fs.existsSync(saved.paths.rawSession!)).toBe(true);
-    expect(JSON.parse(fs.readFileSync(saved.paths.rawSession!, "utf8"))).toEqual(
-      rawSession,
-    );
     expect(
-      fs.readdirSync(path.dirname(saved.paths.rawSession!)).some((entry) =>
-        entry.endsWith(".tmp"),
-      ),
+      JSON.parse(fs.readFileSync(saved.paths.rawSession!, "utf8")),
+    ).toEqual(rawSession);
+    expect(
+      fs
+        .readdirSync(path.dirname(saved.paths.rawSession!))
+        .some((entry) => entry.endsWith(".tmp")),
     ).toBe(false);
   });
 });
